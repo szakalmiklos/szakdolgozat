@@ -35,16 +35,11 @@ df = df[~(df['geo'].str.startswith('Euro') | (df['geo'].str.startswith('European
 
 # Leíró statisztika
 grouped_stats = df.groupby(['cofog99', 'TIME_PERIOD'])['OBS_VALUE'].describe()
-"""
-grouped_means = df.groupby(['sector', 'cofog99', 'TIME_PERIOD'])['OBS_VALUE'].mean().reset_index()
+grouped_stats = grouped_stats.reset_index()
 
+#grouped_stats.to_excel("adatok_abrakhoz.xlsx", index=False)
 
-pivot_table = grouped_means.pivot_table(index='TIME_PERIOD',
-                                        columns=['sector', 'cofog99'], values='OBS_VALUE')
-"""
-
-
-# Fontos rész innen --- !
+# Kiadási kategóriák oszloppá konvertálása
 df_pivot = df.pivot_table(index=['sector', 'geo', 'TIME_PERIOD'],
                             columns='cofog99',  
                             values='OBS_VALUE')
@@ -52,8 +47,7 @@ df_pivot = df.pivot_table(index=['sector', 'geo', 'TIME_PERIOD'],
 df_pivot = df_pivot.reset_index()
 
 
-# k kiválasztása klaszter - ez is tiszta sor
-
+# Optimális k kiválasztása 
 def elbow_gorbe_general_government(df_pivot, year):
     df_year = df_pivot[
         (df_pivot['TIME_PERIOD'] == year) & (df_pivot['sector'] == 'General government')
@@ -88,7 +82,7 @@ elbow_gorbe_general_government(df_pivot, 2021)
 elbow_gorbe_general_government(df_pivot, 2022)
 
 
-# Az összes táblára klaszterezés
+# Az összes évre klaszterezés
 
 years_to_analyze = [2018, 2019, 2020, 2021, 2022]
 
@@ -123,7 +117,7 @@ for year in years_to_analyze:
         tables_2022 = standardized
 
 
-# Hőtérkép a klaszterek pontos értékeiről
+# Hőtérkép a klaszterátlagok pontos értékeiről
 def plot_heatmap(df, year):
     plt.figure(figsize=(12, 6))
     cluster_means = df.groupby('Cluster').mean()
@@ -155,6 +149,7 @@ cross_2020_2021 = pd.crosstab(clusters_2020, clusters_2021)
 cross_2021_2022 = pd.crosstab(clusters_2021, clusters_2022)
 
 
+# Országok évenkénti klaszter besorolása
 def extract_cluster_table(table, year):
     df = table[['Cluster']].copy()
     df = df.reset_index().rename(columns={'geo': 'Ország', 'Cluster': year})
@@ -166,7 +161,7 @@ cluster_table_2020 = extract_cluster_table(tables_2020, 2020)
 cluster_table_2021 = extract_cluster_table(tables_2021, 2021)
 cluster_table_2022 = extract_cluster_table(tables_2022, 2022)
 
-# Országok évenkénti klaszter besorolása
+
 merged_cluster_table = cluster_table_2018.merge(cluster_table_2019, on='Ország')\
                                          .merge(cluster_table_2020, on='Ország')\
                                          .merge(cluster_table_2021, on='Ország')\
@@ -179,7 +174,6 @@ merged_cluster_table = cluster_table_2018.merge(cluster_table_2019, on='Ország'
 
 def klaszter_terkep(table, year):
     custom_palette = ['#0d0887', '#6a00a8', '#cb4679', '#f89441', '#f0f921', '#ffd700']
-    #discrete_colors = px.colors.qualitative.Set3
 
     fig = px.choropleth(
         table,
@@ -202,12 +196,9 @@ def klaszter_terkep(table, year):
     )
     
     fig.update_layout(
-        #legend_title_text="Klaszter",
         title={
             'text': f'Európai országok klaszterei – {year}',
             'font': {'size': 26},
-            #'x': 0.5,
-            #'xanchor': 'center'
         },
         coloraxis_colorbar=dict(
            title='Klaszter',
@@ -220,7 +211,6 @@ def klaszter_terkep(table, year):
     pio.write_html(fig, file=filename, auto_open=False)
     webbrowser.open(filename)
 
-# kikommentelem, hogy ne fusson le mindig
 
 klaszter_terkep(cluster_table_2018, 2018)
 klaszter_terkep(cluster_table_2019, 2019)
